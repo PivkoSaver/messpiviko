@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, session
-from flask_socketio import SocketIO, emit, join_room, leave_room
+from flask_socketio import SocketIO, emit
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -30,8 +30,13 @@ def index():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        nickname = request.form['nickname']
-        password = request.form['password']
+        nickname = request.form.get('nickname')
+        password = request.form.get('password')
+        if not nickname or not password:
+            return 'Заполни все поля', 400
+        existing = User.query.filter_by(nickname=nickname).first()
+        if existing:
+            return 'Пользователь уже существует'
         hashed_password = generate_password_hash(password, method='sha256')
         user = User(nickname=nickname, password=hashed_password)
         db.session.add(user)
@@ -42,13 +47,15 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        nickname = request.form['nickname']
-        password = request.form['password']
+        nickname = request.form.get('nickname')
+        password = request.form.get('password')
+        if not nickname or not password:
+            return 'Заполни все поля', 400
         user = User.query.filter_by(nickname=nickname).first()
         if user and check_password_hash(user.password, password):
             session['user_id'] = user.id
             return redirect(url_for('index'))
-        return 'Invalid credentials'
+        return 'Неверные данные'
     return render_template('login.html')
 
 @socketio.on('connect')
@@ -74,6 +81,7 @@ def handle_message(message):
         user = User.query.get(user_id)
         emit('message', {'nickname': user.nickname, 'text': message}, broadcast=True)
 
+# 💥 Принудительное создание таблиц (всегда)
 with app.app_context():
     db.create_all()
 
