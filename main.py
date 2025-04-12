@@ -74,10 +74,8 @@ def handle_message(message):
         user = User.query.get(user_id)
         emit('message', {'nickname': user.nickname, 'text': message}, broadcast=True)
 
-if not os.path.exists('users.db'):
-    print("Создаём базу данных...")
-    with app.app_context():
-        db.create_all()
+with app.app_context():
+    db.create_all()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
